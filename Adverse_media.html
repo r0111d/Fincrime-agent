@@ -1,0 +1,679 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sentinel — Adverse Media Screening</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Spectral:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=IBM+Plex+Sans:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0d1117; --bg2:#11161f; --panel:#161c27; --panel2:#1b222e;
+    --line:#2a3340; --line2:#374252;
+    --ink:#e8edf4; --ink2:#aeb9c7; --ink3:#6f7d8f;
+    --gold:#c9a44c; --gold2:#e3c373;
+    --green:#4a9b6e; --greenbg:#16271f;
+    --amber:#c9952f; --amberbg:#2a2113;
+    --orange:#d2702e; --orangebg:#2a1a12;
+    --red:#c8483f; --redbg:#2a1513;
+    --blue:#5b8bbd; --bluebg:#13202c;
+    --crit:#d14b48;
+    --shadow:0 18px 50px -20px rgba(0,0,0,.7);
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{
+    background:
+      radial-gradient(1200px 600px at 80% -10%, rgba(201,164,76,.06), transparent 60%),
+      radial-gradient(900px 500px at 0% 110%, rgba(91,139,189,.06), transparent 55%),
+      var(--bg);
+    color:var(--ink); font-family:'IBM Plex Sans',sans-serif;
+    line-height:1.5; min-height:100vh; -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:1080px; margin:0 auto; padding:0 24px}
+
+  /* top bar */
+  header.bar{
+    border-bottom:1px solid var(--line); background:rgba(13,17,23,.7);
+    backdrop-filter:blur(10px); position:sticky; top:0; z-index:50;
+  }
+  .bar-in{display:flex; align-items:center; justify-content:space-between; height:62px}
+  .brand{display:flex; align-items:center; gap:12px; font-weight:600; letter-spacing:.02em}
+  .mark{width:30px;height:30px;border:1px solid var(--gold);border-radius:7px;display:grid;place-items:center;
+    background:linear-gradient(160deg,rgba(201,164,76,.18),transparent);position:relative}
+  .mark::before{content:"";width:9px;height:9px;border:2px solid var(--gold2);border-radius:50%}
+  .mark::after{content:"";position:absolute;width:15px;height:1.5px;background:var(--gold2);transform:rotate(45deg);bottom:6px;right:4px}
+  .brand b{font-family:'Spectral',serif;font-size:19px;font-weight:600}
+  .brand span{color:var(--ink3);font-size:11px;font-family:'IBM Plex Mono',monospace;letter-spacing:.08em;text-transform:uppercase}
+  .bar-meta{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--ink3);letter-spacing:.06em}
+
+  /* hero / search */
+  .hero{padding:64px 0 30px; text-align:center}
+  .kicker{font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:.22em;text-transform:uppercase;color:var(--gold);margin-bottom:18px}
+  .hero h1{font-family:'Spectral',serif;font-weight:600;font-size:clamp(30px,5vw,46px);line-height:1.08;letter-spacing:-.01em;margin-bottom:14px}
+  .hero h1 i{color:var(--gold2);font-style:italic;font-weight:500}
+  .hero p{color:var(--ink2);max-width:600px;margin:0 auto 32px;font-size:15.5px}
+
+  .search{max-width:640px;margin:0 auto;position:relative}
+  .search-box{display:flex;align-items:center;gap:12px;background:var(--panel);border:1px solid var(--line2);
+    border-radius:13px;padding:7px 7px 7px 18px;box-shadow:var(--shadow);transition:border-color .2s, box-shadow .2s}
+  .search-box:focus-within{border-color:var(--gold);box-shadow:0 0 0 3px rgba(201,164,76,.12),var(--shadow)}
+  .search-box svg{flex:none;color:var(--ink3)}
+  #clientInput{flex:1;background:none;border:none;outline:none;color:var(--ink);font-size:16px;font-family:'IBM Plex Sans',sans-serif;padding:10px 0}
+  #clientInput::placeholder{color:var(--ink3)}
+  .go{background:linear-gradient(170deg,var(--gold2),var(--gold));color:#1a1305;border:none;font-weight:600;
+    font-size:14.5px;padding:13px 22px;border-radius:9px;cursor:pointer;font-family:'IBM Plex Sans';transition:transform .12s, filter .2s;white-space:nowrap}
+  .go:hover{filter:brightness(1.07)}
+  .go:active{transform:scale(.98)}
+  .chips{display:flex;gap:9px;justify-content:center;flex-wrap:wrap;margin-top:18px}
+  .chip{font-size:12.5px;color:var(--ink2);background:var(--panel);border:1px solid var(--line);border-radius:20px;
+    padding:7px 14px;cursor:pointer;font-family:'IBM Plex Mono',monospace;transition:all .18s}
+  .chip:hover{border-color:var(--gold);color:var(--gold2)}
+  .chip b{color:var(--ink3);font-weight:400;margin-right:6px}
+
+  .note{max-width:640px;margin:30px auto 0;font-size:12px;color:var(--ink3);text-align:center;line-height:1.6;
+    border-top:1px dashed var(--line);padding-top:18px}
+
+  /* progress */
+  #progress{display:none;max-width:560px;margin:30px auto 0}
+  .step{display:flex;align-items:center;gap:14px;padding:13px 16px;border:1px solid var(--line);border-radius:11px;
+    margin-bottom:9px;background:var(--panel);opacity:.4;transform:translateY(4px);transition:all .4s}
+  .step.on{opacity:1;transform:none;border-color:var(--line2)}
+  .step.done{opacity:1;transform:none}
+  .step .ic{width:26px;height:26px;border-radius:50%;border:1.5px solid var(--line2);flex:none;display:grid;place-items:center;
+    font-family:'IBM Plex Mono';font-size:12px;color:var(--ink3);transition:all .3s}
+  .step.on .ic{border-color:var(--gold);color:var(--gold)}
+  .step.done .ic{background:var(--green);border-color:var(--green);color:#fff}
+  .step .tx{font-size:14px;color:var(--ink2)}
+  .step.on .tx,.step.done .tx{color:var(--ink)}
+  .spin{width:14px;height:14px;border:2px solid var(--line2);border-top-color:var(--gold);border-radius:50%;animation:sp .7s linear infinite}
+  @keyframes sp{to{transform:rotate(360deg)}}
+
+  /* report */
+  #report{display:none;padding:18px 0 80px}
+  .report-in{animation:rise .5s ease both}
+  @keyframes rise{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+
+  .verdict{border:1px solid var(--line2);border-radius:16px;overflow:hidden;box-shadow:var(--shadow);margin-bottom:22px}
+  .verdict-top{padding:24px 26px;display:flex;gap:24px;align-items:flex-start;flex-wrap:wrap}
+  .vmeta{flex:1;min-width:260px}
+  .vmeta .lbl{font-family:'IBM Plex Mono';font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink3);margin-bottom:7px}
+  .vmeta h2{font-family:'Spectral',serif;font-size:27px;font-weight:600;line-height:1.1;margin-bottom:4px}
+  .vmeta .sub{color:var(--ink3);font-size:13px;font-family:'IBM Plex Mono'}
+  .band-badge{text-align:center;flex:none;min-width:150px}
+  .ring{width:118px;height:118px;margin:0 auto 8px;position:relative;display:grid;place-items:center}
+  .ring svg{position:absolute;inset:0;transform:rotate(-90deg)}
+  .ring .num{font-family:'Spectral',serif;font-size:34px;font-weight:600;line-height:1}
+  .ring .of{font-family:'IBM Plex Mono';font-size:10px;color:var(--ink3)}
+  .band-name{font-family:'IBM Plex Mono';font-weight:600;font-size:13px;letter-spacing:.1em;text-transform:uppercase;padding:5px 12px;border-radius:6px;display:inline-block}
+
+  .summary-strip{padding:18px 26px;border-top:1px solid var(--line);background:var(--panel2)}
+  .summary-strip .lbl{font-family:'IBM Plex Mono';font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--gold);margin-bottom:8px}
+  .summary-strip p{font-size:15.5px;color:var(--ink);line-height:1.55;font-family:'Spectral',serif}
+  .action-row{display:flex;gap:14px;align-items:center;padding:16px 26px;border-top:1px solid var(--line)}
+  .action-tag{font-family:'IBM Plex Mono';font-weight:600;font-size:12.5px;letter-spacing:.06em;padding:8px 14px;border-radius:7px;white-space:nowrap}
+  .action-row .desc{font-size:13.5px;color:var(--ink2)}
+
+  .sec-title{font-family:'IBM Plex Mono';font-size:12px;letter-spacing:.16em;text-transform:uppercase;color:var(--ink3);
+    margin:32px 0 14px;display:flex;align-items:center;gap:12px}
+  .sec-title::after{content:"";flex:1;height:1px;background:var(--line)}
+
+  /* metrics */
+  .metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:8px}
+  .metric{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px}
+  .metric .v{font-family:'Spectral',serif;font-size:28px;font-weight:600;line-height:1}
+  .metric .k{font-size:11.5px;color:var(--ink3);margin-top:6px;font-family:'IBM Plex Mono';letter-spacing:.04em}
+
+  /* tree */
+  .tree{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:10px 8px}
+  .node{display:flex;align-items:center;gap:12px;padding:10px 14px;border-radius:9px;position:relative;transition:background .15s}
+  .node:hover{background:var(--panel2)}
+  .node .bar-pct{font-family:'IBM Plex Mono';font-size:12px;font-weight:600;min-width:62px;text-align:right;color:var(--ink2)}
+  .node .nm{flex:1;font-size:14px}
+  .node .nm small{color:var(--ink3);font-size:11.5px;font-family:'IBM Plex Mono';display:block;margin-top:1px}
+  .node .tagx{font-family:'IBM Plex Mono';font-size:10px;letter-spacing:.05em;text-transform:uppercase;padding:3px 8px;border-radius:5px;white-space:nowrap}
+  .depthline{position:absolute;left:0;top:0;bottom:0;width:2px;border-radius:2px}
+
+  /* party cards */
+  .party{background:var(--panel);border:1px solid var(--line);border-radius:13px;margin-bottom:12px;overflow:hidden;transition:border-color .2s}
+  .party.flag{border-color:var(--red)}
+  .party-head{display:flex;align-items:center;gap:14px;padding:15px 18px;cursor:pointer;user-select:none}
+  .party-head:hover{background:var(--panel2)}
+  .pdot{width:10px;height:10px;border-radius:50%;flex:none}
+  .party-head .pn{flex:1}
+  .party-head .pn b{font-size:14.5px;font-weight:600}
+  .party-head .pn small{display:block;color:var(--ink3);font-size:11.5px;font-family:'IBM Plex Mono';margin-top:2px}
+  .party-head .pstat{font-family:'IBM Plex Mono';font-size:11.5px;letter-spacing:.04em;padding:5px 11px;border-radius:6px}
+  .chev{color:var(--ink3);transition:transform .25s}
+  .party.open .chev{transform:rotate(90deg)}
+  .party-body{display:none;border-top:1px solid var(--line);padding:6px 18px 16px}
+  .party.open .party-body{display:block;animation:rise .3s ease both}
+
+  .hit{border:1px solid var(--line);border-radius:10px;padding:14px;margin-top:12px;background:var(--bg2)}
+  .hit-top{display:flex;justify-content:space-between;gap:14px;align-items:flex-start;margin-bottom:9px}
+  .hit-cat{font-weight:600;font-size:14px}
+  .hit-src{font-family:'IBM Plex Mono';font-size:11px;color:var(--ink3);margin-top:3px}
+  .hit-score{text-align:center;flex:none}
+  .hit-score .s{font-family:'Spectral',serif;font-size:24px;font-weight:600;line-height:1}
+  .hit-score .b{font-family:'IBM Plex Mono';font-size:9.5px;letter-spacing:.06em;text-transform:uppercase;padding:2px 7px;border-radius:4px;margin-top:3px;display:inline-block}
+  .hit-desc{font-size:13px;color:var(--ink2);line-height:1.55;margin-bottom:10px}
+  .calc{display:flex;flex-wrap:wrap;gap:7px;align-items:center;font-family:'IBM Plex Mono';font-size:11px}
+  .calc .f{background:var(--panel2);border:1px solid var(--line);border-radius:6px;padding:4px 9px;color:var(--ink2)}
+  .calc .f b{color:var(--ink);font-weight:600}
+  .calc .op{color:var(--ink3)}
+  .calc .eq{color:var(--gold);font-weight:600}
+  .resolve{margin-top:11px;padding:11px 13px;border-radius:8px;font-size:12.5px;line-height:1.55;border-left:3px solid var(--line2)}
+  .resolve b{font-family:'IBM Plex Mono';font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink3);display:block;margin-bottom:4px}
+  .resolve.contain{background:var(--amberbg);border-left-color:var(--amber)}
+  .resolve.floor{background:var(--redbg);border-left-color:var(--red)}
+  .resolve.note{background:var(--bluebg);border-left-color:var(--blue)}
+  .clean-line{padding:13px 4px;color:var(--green);font-size:13px;display:flex;align-items:center;gap:9px}
+  .clean-line svg{flex:none}
+
+  .disclaimer{margin-top:34px;border:1px dashed var(--line2);border-radius:11px;padding:16px 18px;font-size:12px;color:var(--ink3);line-height:1.6}
+  .disclaimer b{color:var(--ink2)}
+  .restart{display:inline-flex;align-items:center;gap:8px;margin-top:24px;background:var(--panel);border:1px solid var(--line2);
+    color:var(--ink2);font-family:'IBM Plex Sans';font-size:13.5px;padding:11px 18px;border-radius:9px;cursor:pointer;transition:all .18s}
+  .restart:hover{border-color:var(--gold);color:var(--gold2)}
+
+  .foot{border-top:1px solid var(--line);text-align:center;padding:22px;color:var(--ink3);font-size:11.5px;font-family:'IBM Plex Mono';letter-spacing:.04em}
+
+  @media(max-width:640px){
+    .metrics{grid-template-columns:repeat(2,1fr)}
+    .verdict-top{flex-direction:column-reverse}
+    .band-badge{align-self:flex-start}
+  }
+</style>
+</head>
+<body>
+
+<header class="bar">
+  <div class="wrap bar-in">
+    <div class="brand">
+      <div class="mark"></div>
+      <div>
+        <b>Sentinel</b><br>
+        <span>Adverse Media Screening</span>
+      </div>
+    </div>
+    <div class="bar-meta" id="barClock">CIB · KYC ENGINE</div>
+  </div>
+</header>
+
+<main class="wrap">
+
+  <!-- SEARCH -->
+  <section class="hero" id="hero">
+    <div class="kicker">Beneficial Ownership · Negative News · Risk Scoring</div>
+    <h1>Screen a client and everyone <i>behind</i> it.</h1>
+    <p>Enter a Corporate &amp; Investment Banking client. Sentinel maps the beneficial ownership to the real people, screens every connected party for adverse media, scores each finding, and hands you a case decision.</p>
+
+    <div class="search">
+      <div class="search-box">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+        <input id="clientInput" placeholder="e.g. United Breweries Limited" autocomplete="off">
+        <button class="go" onclick="runScreen()">Run screening</button>
+      </div>
+      <div class="chips">
+        <span class="chip" onclick="fill('United Breweries Limited')"><b>try</b>United Breweries Limited</span>
+        <span class="chip" onclick="fill('Nordlys Maritime AS')"><b>try</b>Nordlys Maritime AS</span>
+        <span class="chip" onclick="fill('Generic Holdings Ltd')"><b>try</b>any other name</span>
+      </div>
+    </div>
+
+    <div class="note">
+      Demonstration build. United Breweries and Nordlys Maritime run on fully worked datasets. Any other name runs the pipeline against an empty result set to show the clean-path flow. In production, the marked data layer calls your screening provider, corporate registries and live news APIs.
+    </div>
+
+    <div id="progress"></div>
+  </section>
+
+  <!-- REPORT -->
+  <section id="report"></section>
+
+</main>
+
+<div class="foot">SENTINEL · INTERNAL COMPLIANCE TOOL · NOT LEGAL OR INVESTMENT ADVICE · POINT-IN-TIME DATA</div>
+
+<script>
+/* ============================================================
+   SCORING MODEL  (mirrors the Scoring Matrix workbook)
+   Final score = Base x Proof x Recency x Source
+   ============================================================ */
+const CATEGORY_BASE = {
+  "Terrorist financing":10,"Sanctions breach or evasion":10,"Money laundering":10,
+  "Bribery and corruption":9,"Fraud":8,"Organised crime links":8,
+  "Human trafficking / modern slavery":8,"Drug or arms trafficking":8,
+  "Tax evasion":7,"Market abuse / insider dealing":7,"Cybercrime":6,
+  "Regulatory fine / enforcement":6,"Antitrust / competition":5,
+  "Major litigation":4,"Environmental / labour (ESG)":4,"Minor / legacy reputational":2
+};
+const PROOF = {
+  "Conviction / admitted":1.00,"Charged / formal enforcement":0.85,
+  "Under investigation (official)":0.70,"Allegation, corroborated":0.55,
+  "Allegation, single source":0.35,"Confirmed clean exit on record":1.00
+};
+const RECENCY = {
+  "Live / under 1 yr":1.00,"1–3 yrs":0.85,"3–5 yrs":0.70,"5–7 yrs":0.50,"Over 7 yrs":0.30
+};
+const SOURCE = {
+  "Tier 1, multiple":1.00,"Tier 1, single":0.90,"Tier 2, corroborated":0.80,
+  "Tier 2, single":0.60,"Tier 3, local/specialist":0.40,"Tier 4, unverified":0.20
+};
+function band(s){
+  if(s>=8) return ["Critical","var(--crit)","#fff"];
+  if(s>=6) return ["High","var(--orange)","#fff"];
+  if(s>=4) return ["Medium","var(--amber)","#1a1305"];
+  if(s>=2) return ["Low-Medium","#a07d28","#fff"];
+  return ["Low","var(--green)","#fff"];
+}
+function scoreHit(h){
+  const base=CATEGORY_BASE[h.category]??2;
+  const p=PROOF[h.proof]??0.5, r=RECENCY[h.recency]??0.7, s=SOURCE[h.source]??0.5;
+  const raw=+(base*p*r*s).toFixed(2);
+  return {base,p,r,s,raw,band:band(raw)};
+}
+
+/* ============================================================
+   DATA LAYER  ←  replace with live API calls in production
+   buildCase(name) returns: client, parties[] with ownership + hits
+   ============================================================ */
+const DATASETS = {
+  "united breweries limited": {
+    client:"United Breweries Limited",
+    sub:"Brewing · India · Listed NSE/BSE (UBL) · Kingfisher",
+    parties:[
+      {name:"United Breweries Limited", role:"Client entity", pct:null, depth:0,
+        group:"client", current:true, controls:true, hits:[]},
+      {name:"Heineken N.V.", role:"Controlling parent · ~61.5% via group", pct:61.5, depth:1,
+        group:"controller", current:true, controls:true, hits:[]},
+      {name:"Charlene de Carvalho-Heineken", role:"Ultimate beneficial owner (by control)", pct:null, depth:2,
+        group:"ubo", current:true, controls:true, hits:[]},
+      {name:"Hoyer family", role:"Co-owner of top holding entity · ~11%", pct:null, depth:2,
+        group:"ubo", current:true, controls:false, hits:[]},
+      {name:"Anand Kripalu", role:"Chairman (since 2024)", pct:null, depth:1,
+        group:"director", current:true, controls:false, hits:[]},
+      {name:"Vivek Gupta", role:"MD & CEO (since 2023)", pct:null, depth:1,
+        group:"director", current:true, controls:false, hits:[]},
+      {name:"Vijay Mallya", role:"Former owner / former chairman · residual ~8%", pct:8, depth:1,
+        group:"former", current:false, controls:false,
+        hits:[
+          {category:"Money laundering", proof:"Charged / formal enforcement", recency:"Live / under 1 yr", source:"Tier 1, multiple",
+            desc:"Subject of money laundering proceedings in India tied to defaulted loans to the collapsed Kingfisher Airlines. India's Enforcement Directorate has attached assets and he is the subject of ongoing extradition and recovery action.",
+            resolution:"contain"},
+          {category:"Fraud", proof:"Charged / formal enforcement", recency:"Live / under 1 yr", source:"Tier 1, multiple",
+            desc:"Declared a fugitive economic offender and wanted on fraud / bank loan default charges in excess of a billion dollars. Found guilty of contempt by India's Supreme Court for breaching an asset transfer order.",
+            resolution:"contain"}
+        ]},
+      {name:"VJM-group entities", role:"Kamsco, UBHL, Mallya Pvt Ltd, Vittal Investments, others · small/nil", pct:1.2, depth:2,
+        group:"former", current:false, controls:false,
+        hits:[
+          {category:"Major litigation", proof:"Under investigation (official)", recency:"1–3 yrs", source:"Tier 1, multiple",
+            desc:"Promoter-group private companies connected to the former owner. United Breweries (Holdings) Ltd is in liquidation with debt recovery proceedings. Holdings small or nil today but require tracing for hidden value or control.",
+            resolution:"note"}
+        ]}
+    ],
+    ownership:[
+      {nm:"Heineken family + Hoyer family", sub:"Ultimate beneficial owners", pct:"top", tag:"UBO", group:"ubo", depth:0},
+      {nm:"L'Arche Green N.V.", sub:"~52–54% of Heineken Holding", pct:"", tag:"chain", group:"clean", depth:1},
+      {nm:"Heineken Holding N.V.", sub:"~50.005% of Heineken N.V.", pct:"", tag:"chain", group:"clean", depth:2},
+      {nm:"Heineken N.V.", sub:"Listed operating company", pct:"", tag:"chain", group:"clean", depth:3},
+      {nm:"Heineken group entities", sub:"S&N India 34.04% · Heineken Int'l B.V. 24.27% · Heineken UK 3.21%", pct:"61.5%", tag:"control", group:"clean", depth:4},
+      {nm:"United Breweries Limited", sub:"The client", pct:"", tag:"client", group:"client", depth:5},
+      {nm:"Vijay Mallya + VJM group", sub:"Former owner, residual stake", pct:"~9%", tag:"flag", group:"former", depth:5},
+      {nm:"Public float", sub:"FIIs, mutual funds, retail", pct:"~36%", tag:"public", group:"public", depth:5}
+    ]
+  },
+
+  "nordlys maritime as": {
+    client:"Nordlys Maritime AS",
+    sub:"Shipping · Norway · Private · (illustrative dataset)",
+    parties:[
+      {name:"Nordlys Maritime AS", role:"Client entity", pct:null, depth:0, group:"client", current:true, controls:true,
+        hits:[
+          {category:"Sanctions breach or evasion", proof:"Under investigation (official)", recency:"Live / under 1 yr", source:"Tier 2, corroborated",
+            desc:"Two group vessels reported by maritime trade press as conducting AIS-off ship-to-ship transfers in a sanctioned crude corridor. A national authority has opened an inquiry. Not yet charged.",
+            resolution:"floor"}
+        ]},
+      {name:"Bjørn Aaland", role:"UBO · 55% direct", pct:55, depth:1, group:"ubo", current:true, controls:true,
+        hits:[
+          {category:"Tax evasion", proof:"Allegation, corroborated", recency:"3–5 yrs", source:"Tier 2, corroborated",
+            desc:"Named in cross-border investigative reporting on undeclared offshore holdings. No charges filed; the individual disputes the reporting.",
+            resolution:"note"}
+        ]},
+      {name:"Sofia Aaland", role:"Director · 20%", pct:20, depth:1, group:"director", current:true, controls:false, hits:[]},
+      {name:"Meridian Trust (Cyprus)", role:"Nominee holder · 25%", pct:25, depth:1, group:"former", current:true, controls:false,
+        hits:[
+          {category:"Money laundering", proof:"Allegation, single source", recency:"5–7 yrs", source:"Tier 4, unverified",
+            desc:"A single unverified blog links the nominee structure to a layering scheme. No corroboration from any credible source.",
+            resolution:"note"}
+        ]}
+    ],
+    ownership:[
+      {nm:"Bjørn Aaland", sub:"Natural person · UBO", pct:"55%", tag:"UBO", group:"ubo", depth:0},
+      {nm:"Sofia Aaland", sub:"Director", pct:"20%", tag:"director", group:"clean", depth:0},
+      {nm:"Meridian Trust (Cyprus)", sub:"Nominee — beneficiaries to be traced", pct:"25%", tag:"flag", group:"former", depth:0},
+      {nm:"Nordlys Maritime AS", sub:"The client", pct:"", tag:"client", group:"client", depth:1}
+    ]
+  }
+};
+
+function buildCase(name){
+  const key=name.trim().toLowerCase();
+  if(DATASETS[key]) return JSON.parse(JSON.stringify(DATASETS[key]));
+  // clean / unknown path
+  return {
+    client:name.trim()||"Unnamed client",
+    sub:"No worked dataset · pipeline shown against live-data placeholder",
+    unknown:true,
+    parties:[
+      {name:name.trim()||"Client entity", role:"Client entity", pct:null, depth:0, group:"client", current:true, controls:true, hits:[]},
+      {name:"Beneficial owners", role:"To be resolved from registry", pct:null, depth:1, group:"ubo", current:true, controls:true, hits:[]},
+      {name:"Directors & senior managers", role:"To be resolved", pct:null, depth:1, group:"director", current:true, controls:false, hits:[]}
+    ],
+    ownership:[
+      {nm:"Beneficial owners", sub:"Resolve via corporate registry", pct:"", tag:"UBO", group:"ubo", depth:0},
+      {nm:(name.trim()||"Client entity"), sub:"The client", pct:"", tag:"client", group:"client", depth:1}
+    ]
+  };
+}
+
+/* ============================================================
+   AGGREGATION  — the model's judgment layer
+   - score every hit
+   - a CURRENT, in-scope party's worst hit sets the risk FLOOR
+   - a FORMER / non-controlling party's hits are CONTAINED:
+     they inform and trigger EDD but don't set the floor
+   ============================================================ */
+function aggregate(c){
+  let floor=0, contained=0, totalHits=0, parties=0, flagged=0;
+  c.parties.forEach(p=>{
+    parties++;
+    let pWorst=0, pFlag=false;
+    p.hits.forEach(h=>{
+      const sc=scoreHit(h); h._sc=sc; totalHits++;
+      if(sc.raw>pWorst) pWorst=sc.raw;
+      if(sc.raw>=4) pFlag=true;
+      // attribution logic
+      if(p.current && (p.controls || p.group==='client' || p.group==='ubo' || p.group==='controller' || p.group==='director')){
+        if(h.resolution!=='note' || sc.raw>=4){ floor=Math.max(floor, sc.raw); }
+        h._effect='floor';
+      } else {
+        contained=Math.max(contained, sc.raw);
+        h._effect='contain';
+      }
+    });
+    p._worst=pWorst;
+    if(pFlag){flagged++; p._flag=true;}
+  });
+
+  // resolved client score
+  let resolved=floor;
+  let edd=false, eddReason="";
+  if(contained>=4 && floor<contained){
+    edd=true;
+    resolved=Math.max(resolved, 1.4); // legacy/association residual
+    eddReason="A high-severity finding sits on a former or non-controlling party. It is contained, not ignored: it does not set the client's risk floor, but it mandates Enhanced Due Diligence to confirm the party holds no current control and that the connection is genuinely severed.";
+  }
+  const b=band(resolved);
+  return {resolved:+resolved.toFixed(2), floor:+floor.toFixed(2), contained:+contained.toFixed(2),
+    band:b, totalHits, parties, flagged, edd, eddReason};
+}
+
+/* ============================================================
+   CASE SUMMARY + RECOMMENDED ACTION
+   ============================================================ */
+function caseNarrative(c, agg){
+  if(c.unknown){
+    return {
+      summary:`No worked dataset is loaded for ${c.client}, so no adverse media is on file in this demo. In production the engine would screen the resolved ownership tree against live sources before clearing.`,
+      action:["RESOLVE & SCREEN","#5b8bbd","#fff","Build the ownership tree from the registry, then run live screening across every party before any clearance."]
+    };
+  }
+  const cn=c.client;
+  // pick the headline contained / floor driver
+  let driverParty=null, driverHit=null, driverScore=0;
+  c.parties.forEach(p=>p.hits.forEach(h=>{ if(h._sc && h._sc.raw>driverScore){driverScore=h._sc.raw; driverHit=h; driverParty=p;} }));
+
+  if(agg.edd && agg.floor<4){
+    const sev = driverHit ? driverHit.category.toLowerCase() : "serious financial crime";
+    return {
+      summary:`${cn} screens clean at the entity and current-control level. The severe ${sev} exposure attaches to ${driverParty.name}, a former / non-controlling party, so it is contained and does not set the client's risk floor. Proceed only after EDD confirms the residual stake carries no control and the connection is severed.`,
+      action:["APPROVE w/ EDD CONDITIONS","var(--amber)","#1a1305","Refer to Enhanced Due Diligence. Evidence the clean break and the absence of current control, then clear with enhanced monitoring."]
+    };
+  }
+  if(agg.band[0]==="Critical" || agg.band[0]==="High"){
+    const sev = driverHit ? driverHit.category.toLowerCase() : "serious financial crime";
+    return {
+      summary:`${cn} carries a live ${sev} exposure on a current, in-scope party (${driverParty?driverParty.name:'the client'}). This sets the client's risk floor at ${agg.resolved}. The relationship cannot be cleared at first line.`,
+      action:["ESCALATE — MLRO / COMPLIANCE","var(--crit)","#fff","Escalate to Compliance and the MLRO. Senior decision required on decline or exit, alongside any regulatory reporting obligation."]
+    };
+  }
+  if(agg.band[0]==="Medium"){
+    return {
+      summary:`${cn} shows a material finding on a current party that warrants closer review before any decision. Score sits at ${agg.resolved}.`,
+      action:["REFER TO EDD","var(--amber)","#1a1305","Refer to Enhanced Due Diligence to gather more facts before deciding the relationship."]
+    };
+  }
+  return {
+    summary:`${cn} screens clean across the beneficial ownership tree. No material adverse media on any current, in-scope party. Residual items, if any, are low and recorded.`,
+    action:["APPROVE — STANDARD MONITORING","var(--green)","#fff","Clear for onboarding with standard periodic monitoring. Record the dispositions."]
+  };
+}
+
+/* ============================================================
+   UI FLOW
+   ============================================================ */
+function fill(n){document.getElementById('clientInput').value=n; document.getElementById('clientInput').focus();}
+document.getElementById('clientInput').addEventListener('keydown',e=>{if(e.key==='Enter')runScreen();});
+
+const STEPS=[
+  "Scoping the beneficial ownership tree",
+  "Resolving parties to natural persons",
+  "Building searches across sources & languages",
+  "Screening every party for adverse media",
+  "Resolving matches & scoring each finding",
+  "Aggregating risk & drafting the case action"
+];
+
+function runScreen(){
+  const name=document.getElementById('clientInput').value;
+  if(!name.trim()){fill('United Breweries Limited');return;}
+  const prog=document.getElementById('progress');
+  const rep=document.getElementById('report');
+  rep.style.display='none'; rep.innerHTML='';
+  prog.style.display='block';
+  prog.innerHTML=STEPS.map((s,i)=>`<div class="step" id="st${i}">
+     <div class="ic" id="ic${i}">${i+1}</div><div class="tx">${s}</div></div>`).join('');
+
+  let i=0;
+  const tick=()=>{
+    if(i>0){const pic=document.getElementById('ic'+(i-1)); pic.innerHTML='✓'; document.getElementById('st'+(i-1)).classList.add('done');}
+    if(i<STEPS.length){
+      const st=document.getElementById('st'+i); st.classList.add('on');
+      document.getElementById('ic'+i).innerHTML='<div class="spin"></div>';
+      i++; setTimeout(tick, 560 + Math.random()*260);
+    } else {
+      setTimeout(()=>{prog.style.display='none'; renderReport(name);}, 450);
+    }
+  };
+  tick();
+}
+
+const GROUP_COLOR={client:"var(--blue)",controller:"var(--green)",ubo:"var(--green)",
+  director:"var(--blue)",former:"var(--red)",public:"var(--ink3)",clean:"var(--green)"};
+const TAG_STYLE={
+  UBO:["UBO","var(--greenbg)","var(--green)"],
+  control:["CONTROL ~61.5%","var(--greenbg)","var(--green)"],
+  chain:["CHAIN","var(--bluebg)","var(--blue)"],
+  client:["CLIENT","var(--bluebg)","var(--blue)"],
+  flag:["HIGH-RISK","var(--redbg)","var(--red)"],
+  public:["FLOAT","var(--panel2)","var(--ink3)"],
+  director:["DIRECTOR","var(--bluebg)","var(--blue)"]
+};
+
+function renderReport(name){
+  const c=buildCase(name);
+  const agg=aggregate(c);
+  const narr=caseNarrative(c,agg);
+  const rep=document.getElementById('report');
+
+  // ring geometry
+  const pct=Math.min(agg.resolved/10,1);
+  const circ=2*Math.PI*52, off=circ*(1-pct);
+  const bcol=agg.band[1];
+
+  let html=`<div class="report-in">`;
+
+  // VERDICT
+  html+=`<div class="verdict">
+    <div class="verdict-top">
+      <div class="vmeta">
+        <div class="lbl">Screening result</div>
+        <h2>${c.client}</h2>
+        <div class="sub">${c.sub}</div>
+      </div>
+      <div class="band-badge">
+        <div class="ring">
+          <svg width="118" height="118">
+            <circle cx="59" cy="59" r="52" fill="none" stroke="var(--line)" stroke-width="9"/>
+            <circle cx="59" cy="59" r="52" fill="none" stroke="${bcol}" stroke-width="9" stroke-linecap="round"
+              stroke-dasharray="${circ}" stroke-dashoffset="${off}" style="transition:stroke-dashoffset 1s ease .2s"/>
+          </svg>
+          <div><div class="num">${agg.resolved}</div><div class="of">/ 10 risk</div></div>
+        </div>
+        <span class="band-name" style="background:${agg.band[1]};color:${agg.band[2]}">${agg.band[0]}</span>
+      </div>
+    </div>
+    <div class="summary-strip">
+      <div class="lbl">Case summary</div>
+      <p>${narr.summary}</p>
+    </div>
+    <div class="action-row">
+      <span class="action-tag" style="background:${narr.action[1]};color:${narr.action[2]}">${narr.action[0]}</span>
+      <span class="desc">${narr.action[3]}</span>
+    </div>
+  </div>`;
+
+  // METRICS
+  html+=`<div class="metrics">
+    <div class="metric"><div class="v">${agg.parties}</div><div class="k">PARTIES SCREENED</div></div>
+    <div class="metric"><div class="v" style="color:${agg.totalHits?'var(--amber)':'var(--green)'}">${agg.totalHits}</div><div class="k">ADVERSE HITS</div></div>
+    <div class="metric"><div class="v" style="color:${agg.flagged?'var(--red)':'var(--green)'}">${agg.flagged}</div><div class="k">PARTIES FLAGGED</div></div>
+    <div class="metric"><div class="v" style="color:${agg.contained>=4?'var(--amber)':'var(--ink)'}">${agg.contained||'—'}</div><div class="k">CONTAINED PEAK</div></div>
+  </div>`;
+
+  // OWNERSHIP TREE
+  html+=`<div class="sec-title">Beneficial ownership</div><div class="tree">`;
+  c.ownership.forEach(o=>{
+    const ts=TAG_STYLE[o.tag]||["",,];
+    const gc=GROUP_COLOR[o.group]||"var(--ink3)";
+    html+=`<div class="node" style="margin-left:${o.depth*20}px">
+      <div class="depthline" style="background:${gc};opacity:.5"></div>
+      <div class="bar-pct">${o.pct&&o.pct!=='top'?o.pct:''}</div>
+      <div class="nm">${o.nm}<small>${o.sub}</small></div>
+      ${ts[0]?`<span class="tagx" style="background:${ts[1]};color:${ts[2]}">${ts[0]}</span>`:''}
+    </div>`;
+  });
+  html+=`</div>`;
+
+  // PARTY SCREENING
+  html+=`<div class="sec-title">Party-by-party screening</div>`;
+  c.parties.forEach((p,idx)=>{
+    const flagged=p._flag;
+    const dot=flagged?"var(--red)":(p.hits.length?"var(--amber)":"var(--green)");
+    const stat = flagged?["MATERIAL HIT","var(--redbg)","var(--red)"]
+      : p.hits.length?["REVIEW","var(--amberbg)","var(--amber)"]
+      : ["CLEAR","var(--greenbg)","var(--green)"];
+    const open = p.hits.length? (idx===0?'':'') : '';
+    html+=`<div class="party ${flagged?'flag':'clean'} ${p.hits.length?'open':''}" id="pty${idx}">
+      <div class="party-head" onclick="document.getElementById('pty${idx}').classList.toggle('open')">
+        <span class="pdot" style="background:${dot}"></span>
+        <div class="pn"><b>${p.name}</b><small>${p.role}${p.current?'':' · former / non-controlling'}</small></div>
+        <span class="pstat" style="background:${stat[1]};color:${stat[2]}">${stat[0]}</span>
+        <svg class="chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>
+      </div>
+      <div class="party-body">`;
+    if(!p.hits.length){
+      html+=`<div class="clean-line">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6 9 17l-5-5"/></svg>
+        No adverse media returned. Recorded as screened and clear.</div>`;
+    } else {
+      p.hits.forEach(h=>{
+        const sc=h._sc;
+        const rb=sc.band;
+        html+=`<div class="hit">
+          <div class="hit-top">
+            <div><div class="hit-cat">${h.category}</div><div class="hit-src">${h.proof} · ${h.recency} · ${h.source}</div></div>
+            <div class="hit-score"><div class="s" style="color:${rb[1]}">${sc.raw}</div>
+              <span class="b" style="background:${rb[1]};color:${rb[2]}">${rb[0]}</span></div>
+          </div>
+          <div class="hit-desc">${h.desc}</div>
+          <div class="calc">
+            <span class="f">base <b>${sc.base}</b></span><span class="op">×</span>
+            <span class="f">proof <b>${sc.p}</b></span><span class="op">×</span>
+            <span class="f">recency <b>${sc.r}</b></span><span class="op">×</span>
+            <span class="f">source <b>${sc.s}</b></span><span class="op">=</span>
+            <span class="eq">${sc.raw}</span>
+          </div>`;
+        const eff=h._effect;
+        if(eff==='contain'){
+          html+=`<div class="resolve contain"><b>Resolution · contained</b>
+            This finding attaches to a former or non-controlling party. It is recorded and triggers EDD, but it does <i>not</i> set the client's risk floor. Confirm no current control before clearing.</div>`;
+        } else if(eff==='floor'){
+          if(h.resolution==='note'){
+            html+=`<div class="resolve note"><b>Resolution · recorded</b>
+              Low-weight or uncorroborated. Recorded and monitored; does not drive the rating on its own.</div>`;
+          } else {
+            html+=`<div class="resolve floor"><b>Resolution · sets risk floor</b>
+              This attaches to a current, in-scope party. It sets the client's risk floor and drives escalation.</div>`;
+          }
+        } else {
+          html+=`<div class="resolve note"><b>Resolution · recorded</b>
+            Recorded and monitored.</div>`;
+        }
+        html+=`</div>`;
+      });
+    }
+    html+=`</div></div>`;
+  });
+
+  // EDD callout
+  if(agg.edd){
+    html+=`<div class="sec-title">Why the score is contained</div>
+    <div class="disclaimer" style="border-color:var(--amber);background:var(--amberbg)">
+      <b>Entity resolution drove this result.</b> ${agg.eddReason}
+      The raw severity peaked at <b>${agg.contained}</b> (Critical/High) on a former party, yet the resolved client score is <b>${agg.resolved}</b> because that party holds no current control. This is the core judgment the model exists to make: score the conduct, but attribute it correctly. If EDD found hidden current control, the treatment flips to escalation.
+    </div>`;
+  }
+
+  // disclaimer + restart
+  html+=`<div class="disclaimer">
+    <b>How to read this.</b> Final score = category base × proof × recency × source, per the scoring matrix. A current, in-scope party's worst finding sets the client's risk floor. Findings on former or non-controlling parties are contained: recorded and sent to EDD, but they do not set the floor. The score is a triage and consistency aid, not the decision. Every material hit gets a human review and a written rationale.<br><br>
+    <b>Data.</b> Demonstration datasets from public sources, point-in-time. Production wiring: corporate registries for the ownership tree, a screening database plus live news APIs for adverse media, refreshed each review.
+  </div>
+  <button class="restart" onclick="resetApp()">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 9-9 9 9 0 0 0-6.4 2.6L3 8"/><path d="M3 3v5h5"/></svg>
+    Screen another client</button>`;
+
+  html+=`</div>`;
+  rep.innerHTML=html; rep.style.display='block';
+  rep.scrollIntoView({behavior:'smooth',block:'start'});
+}
+
+function resetApp(){
+  document.getElementById('report').style.display='none';
+  document.getElementById('clientInput').value='';
+  document.getElementById('hero').scrollIntoView({behavior:'smooth'});
+  document.getElementById('clientInput').focus();
+}
+
+// clock
+setInterval(()=>{
+  const d=new Date();
+  document.getElementById('barClock').textContent='CIB · KYC ENGINE · '+d.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
+},1000);
+</script>
+</body>
+</html>
